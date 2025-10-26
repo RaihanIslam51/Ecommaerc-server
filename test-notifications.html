@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        #notifications {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9fafb;
+        }
+        .notification {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .unread {
+            background: #dbeafe;
+        }
+        .badge {
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔔 Notification System Test</h1>
+    
+    <div>
+        <h2>Actions:</h2>
+        <button onclick="createOrder()">📦 Create Test Order</button>
+        <button onclick="fetchNotifications()">🔄 Fetch Notifications</button>
+        <button onclick="markAllRead()">✅ Mark All Read</button>
+        <button onclick="clearDisplay()">🗑️ Clear Display</button>
+    </div>
+
+    <div id="status" style="margin: 20px 0; font-weight: bold;"></div>
+
+    <div id="notifications">
+        <h3>Notifications: <span id="count" class="badge">0</span></h3>
+        <div id="list"></div>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <h3>API Response:</h3>
+        <pre id="response">Click a button to see API response...</pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let notifications = [];
+
+        async function createOrder() {
+            updateStatus('Creating order...');
+            try {
+                const response = await fetch(`${API_URL}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        customer: 'Test Customer ' + Date.now(),
+                        amount: Math.random() * 1000,
+                        status: 'pending',
+                        items: [
+                            { name: 'Test Product', quantity: 1 }
+                        ]
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                updateStatus('✅ Order created! Fetching notifications...');
+                setTimeout(fetchNotifications, 1000);
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        async function fetchNotifications() {
+            updateStatus('Fetching notifications...');
+            try {
+                const response = await fetch(`${API_URL}/notifications`);
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success && data.notifications) {
+                    notifications = data.notifications;
+                    displayNotifications();
+                    const unread = notifications.filter(n => !n.read).length;
+                    updateStatus(`✅ Found ${notifications.length} notifications (${unread} unread)`);
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        async function markAllRead() {
+            updateStatus('Marking all as read...');
+            try {
+                const response = await fetch(`${API_URL}/notifications/read-all`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                updateStatus('✅ All notifications marked as read!');
+                setTimeout(fetchNotifications, 500);
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function displayNotifications() {
+            const list = document.getElementById('list');
+            const unread = notifications.filter(n => !n.read).length;
+            document.getElementById('count').textContent = unread;
+            
+            if (notifications.length === 0) {
+                list.innerHTML = '<p>No notifications</p>';
+                return;
+            }
+
+            list.innerHTML = notifications.map(notif => `
+                <div class="notification ${!notif.read ? 'unread' : ''}">
+                    <strong>${notif.title}</strong>
+                    <p>${notif.message}</p>
+                    <small>
+                        Amount: $${notif.amount.toFixed(2)} | 
+                        Order: ${notif.orderId} | 
+                        ${!notif.read ? '🔵 Unread' : '✅ Read'}
+                    </small>
+                </div>
+            `).join('');
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function clearDisplay() {
+            document.getElementById('list').innerHTML = '';
+            document.getElementById('response').textContent = 'Cleared';
+            document.getElementById('count').textContent = '0';
+            updateStatus('Display cleared');
+        }
+
+        // Auto-fetch on load
+        window.onload = () => {
+            fetchNotifications();
+            // Auto-refresh every 5 seconds
+            setInterval(fetchNotifications, 5000);
+        };
+    </script>
+</body>
+</html>
