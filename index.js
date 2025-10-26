@@ -9,7 +9,12 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // MongoDB connection
@@ -35,8 +40,41 @@ async function run() {
     const ordersCollection = db.collection("orders");
     const notificationsCollection = db.collection("notifications");
     const messagesCollection = db.collection("messages");
+    const categoriesCollection = db.collection("categories");
+    const bannersCollection = db.collection("banners");
+
+    // Initialize default categories if none exist
+    const categoryCount = await categoriesCollection.countDocuments();
+    if (categoryCount === 0) {
+      const defaultCategories = [
+        { name: "Electronics", icon: "💻", description: "Laptops, phones, and gadgets", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Clothing", icon: "👕", description: "Fashion and apparel", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Home & Kitchen", icon: "🏠", description: "Home essentials", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Sports", icon: "⚽", description: "Sports equipment", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Books", icon: "📚", description: "Books and literature", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Toys", icon: "🎮", description: "Toys and games", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Beauty", icon: "💄", description: "Beauty and cosmetics", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { name: "Health", icon: "🏥", description: "Health and wellness", productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ];
+      await categoriesCollection.insertMany(defaultCategories);
+      console.log("✅ Default categories initialized");
+    }
 
 
+    // ============= HEALTH CHECK =============
+    app.get("/", (req, res) => {
+      res.status(200).send({
+        success: true,
+        message: "🚀 BDMart API Server is running!",
+        timestamp: new Date().toISOString(),
+        endpoints: {
+          products: "/products",
+          orders: "/orders",
+          messages: "/messages",
+          notifications: "/notifications"
+        }
+      });
+    });
 
     // ============= PRODUCTS ROUTES =============
     
@@ -50,6 +88,43 @@ async function run() {
         res.status(500).send({
           success: false,
           message: "Failed to fetch products",
+        });
+      }
+    });
+
+    // SEARCH products by name, category, or brand
+    app.get("/products/search/:query", async (req, res) => {
+      try {
+        const searchQuery = req.params.query;
+        console.log('🔍 Searching for:', searchQuery);
+        
+        // Create regex pattern for case-insensitive search
+        const searchRegex = new RegExp(searchQuery, 'i');
+        
+        // Search in name, category, brand, description, and tags
+        const products = await productsCollection.find({
+          $or: [
+            { name: searchRegex },
+            { category: searchRegex },
+            { brand: searchRegex },
+            { description: searchRegex },
+            { tags: searchRegex }
+          ]
+        }).limit(20).toArray();
+        
+        console.log(`✅ Found ${products.length} products`);
+        
+        res.status(200).send({
+          success: true,
+          count: products.length,
+          products: products
+        });
+      } catch (error) {
+        console.error("❌ Error searching products:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to search products",
+          products: []
         });
       }
     });
@@ -160,6 +235,250 @@ async function run() {
         res.status(500).send({
           success: false,
           message: "Failed to delete product",
+        });
+      }
+    });
+
+    // ============= CATEGORIES ROUTES =============
+    
+    // GET all categories
+    app.get("/categories", async (req, res) => {
+      try {
+        const categories = await categoriesCollection.find().sort({ name: 1 }).toArray();
+        res.status(200).send({
+          success: true,
+          categories: categories
+        });
+      } catch (error) {
+        console.error("❌ Error fetching categories:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch categories"
+        });
+      }
+    });
+
+    // POST - Create new category
+    app.post("/categories", async (req, res) => {
+      try {
+        const { name, description, image, icon } = req.body;
+        
+        // Check if category already exists
+        const existingCategory = await categoriesCollection.findOne({ 
+          name: { $regex: new RegExp(`^${name}$`, 'i') } 
+        });
+        
+        if (existingCategory) {
+          return res.status(400).send({
+            success: false,
+            message: "Category already exists"
+          });
+        }
+
+        const newCategory = {
+          name: name,
+          description: description || "",
+          image: image || "",
+          icon: icon || "📦",
+          productCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const result = await categoriesCollection.insertOne(newCategory);
+        console.log(`✅ Category created: ${name}`);
+
+        res.status(201).send({
+          success: true,
+          message: "Category created successfully",
+          category: { ...newCategory, _id: result.insertedId }
+        });
+      } catch (error) {
+        console.error("❌ Error creating category:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to create category"
+        });
+      }
+    });
+
+    // DELETE category
+    app.delete("/categories/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await categoriesCollection.deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Category not found"
+          });
+        }
+
+        res.status(200).send({
+          success: true,
+          message: "Category deleted successfully"
+        });
+      } catch (error) {
+        console.error("❌ Error deleting category:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to delete category"
+        });
+      }
+    });
+
+    // ============= BANNERS ROUTES =============
+    
+    // GET all banners
+    app.get("/banners", async (req, res) => {
+      try {
+        const banners = await bannersCollection.find().sort({ order: 1, createdAt: -1 }).toArray();
+        res.status(200).send({
+          success: true,
+          banners: banners
+        });
+      } catch (error) {
+        console.error("❌ Error fetching banners:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch banners"
+        });
+      }
+    });
+
+    // POST create new banner
+    app.post("/banners", async (req, res) => {
+      try {
+        console.log('📥 Received banner data:', req.body);
+        
+        const bannerData = {
+          ...req.body,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const result = await bannersCollection.insertOne(bannerData);
+        
+        console.log('✅ Banner created with ID:', result.insertedId);
+        
+        res.status(201).send({
+          success: true,
+          message: "Banner created successfully",
+          bannerId: result.insertedId
+        });
+      } catch (error) {
+        console.error("❌ Error creating banner:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to create banner"
+        });
+      }
+    });
+
+    // PUT update banner by ID
+    app.put("/banners/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        
+        // Check if it's a valid ObjectId
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({
+            success: false,
+            message: "Invalid banner ID"
+          });
+        }
+
+        const updateData = {
+          ...req.body,
+          updatedAt: new Date().toISOString()
+        };
+
+        // Remove _id from update data if it exists
+        delete updateData._id;
+
+        const result = await bannersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Banner not found"
+          });
+        }
+
+        res.status(200).send({
+          success: true,
+          message: "Banner updated successfully"
+        });
+      } catch (error) {
+        console.error("❌ Error updating banner:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to update banner"
+        });
+      }
+    });
+
+    // DELETE banner by ID
+    app.delete("/banners/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        
+        // Check if it's a valid ObjectId
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({
+            success: false,
+            message: "Invalid banner ID"
+          });
+        }
+
+        const result = await bannersCollection.deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Banner not found"
+          });
+        }
+
+        res.status(200).send({
+          success: true,
+          message: "Banner deleted successfully"
+        });
+      } catch (error) {
+        console.error("❌ Error deleting banner:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to delete banner"
+        });
+      }
+    });
+
+    // GET banners by position (left or right) - MUST be after specific ID routes
+    app.get("/banners/position/:position", async (req, res) => {
+      try {
+        const position = req.params.position;
+        console.log('🔍 Fetching banners for position:', position);
+        
+        const banners = await bannersCollection
+          .find({ position: position, isActive: true })
+          .sort({ order: 1 })
+          .toArray();
+        
+        console.log(`✅ Found ${banners.length} active ${position} banners`);
+        
+        res.status(200).send({
+          success: true,
+          banners: banners
+        });
+      } catch (error) {
+        console.error("❌ Error fetching banners:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch banners"
         });
       }
     });
