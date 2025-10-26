@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
+import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 const PORT = process.env.PORT || 5000;
@@ -10,7 +12,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -71,9 +73,522 @@ async function run() {
           products: "/products",
           orders: "/orders",
           messages: "/messages",
-          notifications: "/notifications"
+          notifications: "/notifications",
+          auth: "/auth"
         }
       });
+    });
+
+    // ============= AUTHENTICATION ROUTES =============
+    
+    // User Registration (Sign Up)
+    app.post("/auth/signup", async (req, res) => {
+      try {
+        const { name, email, password, phone, address } = req.body;
+
+        // Validation
+        if (!name || !email || !password) {
+          return res.status(400).send({
+            success: false,
+            message: "Name, email, and password are required",
+          });
+        }
+
+        // Check if user already exists
+        const existingUser = await usersCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(409).send({
+            success: false,
+            message: "User with this email already exists",
+          });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user
+        const newUser = {
+          name,
+          email,
+          password: hashedPassword,
+          phone: phone || "",
+          address: address || "",
+          role: "user", // Default role
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await usersCollection.insertOne(newUser);
+
+        // Remove password from response
+        delete newUser.password;
+
+        res.status(201).send({
+          success: true,
+          message: "User registered successfully",
+          user: {
+            _id: result.insertedId,
+            ...newUser,
+          },
+        });
+      } catch (error) {
+        console.error("❌ Error in signup:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to register user",
+          error: error.message,
+        });
+      }
+    });
+
+    // User Login
+    app.post("/auth/login", async (req, res) => {
+      try {
+        const { email, password } = req.body;
+
+        // Validation
+        if (!email || !password) {
+          return res.status(400).send({
+            success: false,
+            message: "Email and password are required",
+          });
+        }
+
+        // Find user by email
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+          return res.status(401).send({
+            success: false,
+            message: "Invalid email or password",
+          });
+        }
+
+        // Verify password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return res.status(401).send({
+            success: false,
+            message: "Invalid email or password",
+          });
+        }
+
+        // Remove password from response
+        delete user.password;
+
+        res.status(200).send({
+          success: true,
+          message: "Login successful",
+          user,
+        });
+      } catch (error) {
+        console.error("❌ Error in login:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to login",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get User Profile
+    app.get("/auth/profile/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+        if (!user) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        // Remove password from response
+        delete user.password;
+
+        res.status(200).send({
+          success: true,
+          user,
+        });
+      } catch (error) {
+        console.error("❌ Error fetching profile:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch profile",
+        });
+      }
+    });
+
+    // Update User Profile
+    app.put("/auth/profile/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const updates = req.body;
+
+        // Don't allow password update through this route
+        if (updates.password) {
+          delete updates.password;
+        }
+
+        // Don't allow role update for regular users
+        if (updates.role) {
+          delete updates.role;
+        }
+
+        updates.updatedAt = new Date().toISOString();
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        const updatedUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
+        delete updatedUser.password;
+
+        res.status(200).send({
+          success: true,
+          message: "Profile updated successfully",
+          user: updatedUser,
+        });
+      } catch (error) {
+        console.error("❌ Error updating profile:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to update profile",
+        });
+      }
+    });
+
+    // Change Password
+    app.post("/auth/change-password", async (req, res) => {
+      try {
+        const { userId, currentPassword, newPassword } = req.body;
+
+        if (!userId || !currentPassword || !newPassword) {
+          return res.status(400).send({
+            success: false,
+            message: "All fields are required",
+          });
+        }
+
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+        if (!user) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) {
+          return res.status(401).send({
+            success: false,
+            message: "Current password is incorrect",
+          });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              password: hashedPassword,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        );
+
+        res.status(200).send({
+          success: true,
+          message: "Password changed successfully",
+        });
+      } catch (error) {
+        console.error("❌ Error changing password:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to change password",
+        });
+      }
+    });
+
+    // Reset user password (Admin only)
+    app.post("/auth/reset-password", async (req, res) => {
+      try {
+        const { userId, email, tempPassword, adminId } = req.body;
+
+        // Validate required fields
+        if (!userId || !email || !tempPassword || !adminId) {
+          return res.status(400).send({
+            success: false,
+            message: "All fields are required",
+          });
+        }
+
+        // Verify admin
+        const admin = await usersCollection.findOne({ _id: new ObjectId(adminId) });
+        if (!admin || admin.role !== "admin") {
+          return res.status(403).send({
+            success: false,
+            message: "Unauthorized. Admin access required",
+          });
+        }
+
+        // Check if user exists
+        const user = await usersCollection.findOne({ 
+          _id: new ObjectId(userId),
+          email: email 
+        });
+        
+        if (!user) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        // Hash temporary password
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        // Update user password
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              password: hashedPassword,
+              passwordResetRequired: true,
+              passwordResetAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            },
+          }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(400).send({
+            success: false,
+            message: "Failed to reset password",
+          });
+        }
+
+        res.status(200).send({
+          success: true,
+          message: "Password reset successfully",
+          data: {
+            userId: user._id,
+            email: user.email,
+            tempPassword: tempPassword
+          }
+        });
+      } catch (error) {
+        console.error("❌ Error resetting password:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to reset password",
+        });
+      }
+    });
+
+    // ========== USER MANAGEMENT ROUTES (Admin Only) ==========
+
+    // Get all users with pagination and search
+    app.get("/users", async (req, res) => {
+      try {
+        const { page = 1, limit = 10, search = "", role = "" } = req.query;
+        
+        // Build query
+        const query = {};
+        if (search) {
+          query.$or = [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } }
+          ];
+        }
+        if (role) {
+          query.role = role;
+        }
+
+        // Get total count
+        const total = await usersCollection.countDocuments(query);
+
+        // Get paginated users
+        const users = await usersCollection
+          .find(query)
+          .project({ password: 0 }) // Exclude passwords
+          .sort({ createdAt: -1 })
+          .skip((parseInt(page) - 1) * parseInt(limit))
+          .limit(parseInt(limit))
+          .toArray();
+
+        // Get stats
+        const totalUsers = await usersCollection.countDocuments();
+        const totalAdmins = await usersCollection.countDocuments({ role: "admin" });
+
+        res.status(200).send({
+          success: true,
+          users,
+          pagination: {
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            pages: Math.ceil(total / parseInt(limit))
+          },
+          stats: {
+            totalUsers,
+            totalAdmins,
+            totalRegularUsers: totalUsers - totalAdmins
+          }
+        });
+      } catch (error) {
+        console.error("❌ Error fetching users:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch users"
+        });
+      }
+    });
+
+    // Update user role (Admin only)
+    app.put("/users/:id/role", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { role, adminId } = req.body;
+
+        // Validate role
+        if (!["user", "admin"].includes(role)) {
+          return res.status(400).send({
+            success: false,
+            message: "Invalid role. Must be 'user' or 'admin'"
+          });
+        }
+
+        // Verify admin
+        const admin = await usersCollection.findOne({ _id: new ObjectId(adminId) });
+        if (!admin || admin.role !== "admin") {
+          return res.status(403).send({
+            success: false,
+            message: "Unauthorized. Admin access required"
+          });
+        }
+
+        // Prevent self-demotion
+        if (id === adminId && role === "user") {
+          return res.status(400).send({
+            success: false,
+            message: "You cannot demote yourself"
+          });
+        }
+
+        // Check if user exists
+        const userToUpdate = await usersCollection.findOne({ _id: new ObjectId(id) });
+        if (!userToUpdate) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found"
+          });
+        }
+
+        // Update role
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              role,
+              updatedAt: new Date().toISOString()
+            }
+          }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(400).send({
+            success: false,
+            message: "Failed to update role"
+          });
+        }
+
+        // Get updated user
+        const updatedUser = await usersCollection.findOne(
+          { _id: new ObjectId(id) },
+          { projection: { password: 0 } }
+        );
+
+        res.status(200).send({
+          success: true,
+          message: `User role updated to ${role}`,
+          user: updatedUser
+        });
+      } catch (error) {
+        console.error("❌ Error updating user role:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to update user role"
+        });
+      }
+    });
+
+    // Delete user (Admin only)
+    app.delete("/users/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { adminId } = req.body;
+
+        // Verify admin
+        const admin = await usersCollection.findOne({ _id: new ObjectId(adminId) });
+        if (!admin || admin.role !== "admin") {
+          return res.status(403).send({
+            success: false,
+            message: "Unauthorized. Admin access required"
+          });
+        }
+
+        // Prevent self-deletion
+        if (id === adminId) {
+          return res.status(400).send({
+            success: false,
+            message: "You cannot delete yourself"
+          });
+        }
+
+        // Check if user exists
+        const userToDelete = await usersCollection.findOne({ _id: new ObjectId(id) });
+        if (!userToDelete) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found"
+          });
+        }
+
+        // Delete user
+        const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(400).send({
+            success: false,
+            message: "Failed to delete user"
+          });
+        }
+
+        res.status(200).send({
+          success: true,
+          message: "User deleted successfully"
+        });
+      } catch (error) {
+        console.error("❌ Error deleting user:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to delete user"
+        });
+      }
     });
 
     // ============= PRODUCTS ROUTES =============
@@ -1193,18 +1708,20 @@ async function run() {
     // GET all messages
     app.get("/messages", async (req, res) => {
       try {
+        console.log("📨 GET /messages request received");
         const messages = await messagesCollection
           .find()
           .sort({ createdAt: -1 })
           .limit(20)
           .toArray();
         
+        console.log(`✅ Found ${messages.length} messages`);
         res.status(200).send({
           success: true,
           messages: messages
         });
       } catch (error) {
-        console.error("Error fetching messages:", error);
+        console.error("❌ Error fetching messages:", error);
         res.status(500).send({
           success: false,
           message: "Failed to fetch messages"
@@ -1305,18 +1822,149 @@ async function run() {
       }
     });
 
+    // ============= EMAIL ROUTES =============
+    
+    // Send Email to Customers
+    app.post("/api/send-email", async (req, res) => {
+      try {
+        const { recipients, subject, message, htmlContent } = req.body;
+
+        // Validation
+        if (!recipients || recipients.length === 0) {
+          return res.status(400).send({
+            success: false,
+            message: "At least one recipient is required"
+          });
+        }
+
+        if (!subject || !message) {
+          return res.status(400).send({
+            success: false,
+            message: "Subject and message are required"
+          });
+        }
+
+        // Check if email is configured
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+          console.error("❌ Email not configured. Please set EMAIL_USER and EMAIL_PASSWORD in .env file");
+          return res.status(503).send({
+            success: false,
+            message: "Email service not configured. Please contact administrator to set up email credentials in the .env file.",
+            details: "Missing EMAIL_USER or EMAIL_PASSWORD environment variables"
+          });
+        }
+
+        // Check for placeholder values
+        if (process.env.EMAIL_USER === 'your-email@gmail.com' || 
+            process.env.EMAIL_PASSWORD === 'your-app-password') {
+          console.error("❌ Email credentials are still set to placeholder values");
+          return res.status(503).send({
+            success: false,
+            message: "Email service not configured properly. Please update EMAIL_USER and EMAIL_PASSWORD with real credentials in the .env file.",
+            details: "Placeholder values detected. Please refer to EMAIL_SETUP_GUIDE.md for setup instructions."
+          });
+        }
+
+        // Create nodemailer transporter
+        const transporter = nodemailer.createTransport({
+          service: process.env.EMAIL_SERVICE || 'gmail',
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+          }
+        });
+
+        // Verify transporter configuration
+        try {
+          await transporter.verify();
+          console.log("✅ Email transporter verified successfully");
+        } catch (verifyError) {
+          console.error("❌ Email transporter verification failed:", verifyError.message);
+          return res.status(503).send({
+            success: false,
+            message: "Email authentication failed. Please check your email credentials.",
+            details: verifyError.message,
+            hint: "Make sure you're using a Gmail App Password, not your regular password. See EMAIL_SETUP_GUIDE.md"
+          });
+        }
+
+        // Send email to each recipient
+        const emailPromises = recipients.map(async (email) => {
+          const mailOptions = {
+            from: `"BDMart" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: subject,
+            text: message,
+            html: htmlContent || `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 28px;">🛒 BDMart</h1>
+                </div>
+                <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                  <h2 style="color: #333; margin-top: 0;">${subject}</h2>
+                  <div style="color: #555; line-height: 1.6; white-space: pre-wrap;">${message}</div>
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                  <p style="color: #888; font-size: 12px; text-align: center; margin: 0;">
+                    © ${new Date().getFullYear()} BDMart. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+          };
+
+          return transporter.sendMail(mailOptions);
+        });
+
+        await Promise.all(emailPromises);
+
+        console.log(`✅ Email sent successfully to ${recipients.length} recipient(s)`);
+        res.status(200).send({
+          success: true,
+          message: `Email sent successfully to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`,
+          sentTo: recipients.length
+        });
+
+      } catch (error) {
+        console.error("❌ Error sending email:", error);
+        
+        // Provide more detailed error messages
+        let errorMessage = "Failed to send email";
+        let errorDetails = error.message;
+        
+        if (error.code === 'EAUTH') {
+          errorMessage = "Email authentication failed";
+          errorDetails = "Invalid email credentials. Please check your EMAIL_USER and EMAIL_PASSWORD in .env file. For Gmail, use an App Password.";
+        } else if (error.code === 'ESOCKET' || error.code === 'ETIMEDOUT') {
+          errorMessage = "Connection failed";
+          errorDetails = "Could not connect to email server. Check your internet connection.";
+        } else if (error.code === 'EENVELOPE') {
+          errorMessage = "Invalid email address";
+          errorDetails = "One or more recipient email addresses are invalid.";
+        }
+        
+        res.status(500).send({
+          success: false,
+          message: errorMessage,
+          details: errorDetails,
+          error: error.message
+        });
+      }
+    });
+
   } catch (error) {
     console.error("❌ MongoDB connection error:", error);
   }
 }
-run().catch(console.dir);
 
-// Default route
-app.get("/", (req, res) => {
-  res.send("🚀 Express server is running...");
-});
+// Start server after database connection
+run().then(() => {
+  // Default route
+  app.get("/", (req, res) => {
+    res.send("🚀 Express server is running...");
+  });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+  // Start server
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+  });
+}).catch(console.dir);
