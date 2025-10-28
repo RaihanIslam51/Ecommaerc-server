@@ -1,5 +1,6 @@
 // controllers/categoryController.js
 import Category from "../models/Category.js";
+import { getDB } from "../config/database.js";
 import {
   successResponse,
   errorResponse,
@@ -9,12 +10,37 @@ import {
 } from "../utils/response.js";
 
 /**
- * Get all categories
+ * Get all categories with dynamic product count
  */
 export const getAllCategories = async (req, res) => {
   try {
     const categories = await Category.findAll();
-    return successResponse(res, { categories }, "Categories fetched successfully");
+    
+    // Get products collection to count products per category
+    const productsCollection = getDB().collection("products");
+    
+    // Get all unique category names from products for debugging
+    const uniqueCategories = await productsCollection.distinct("category");
+    console.log("📦 Unique categories in products:", uniqueCategories);
+    
+    // Calculate product count for each category
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (category) => {
+        // Case-insensitive search for category name
+        const productCount = await productsCollection.countDocuments({
+          category: { $regex: new RegExp(`^${category.name}$`, 'i') }
+        });
+        
+        console.log(`📊 Category "${category.name}": ${productCount} products`);
+        
+        return {
+          ...category,
+          productCount
+        };
+      })
+    );
+    
+    return successResponse(res, { categories: categoriesWithCount }, "Categories fetched successfully");
   } catch (error) {
     console.error("❌ Error fetching categories:", error);
     return errorResponse(res, "Failed to fetch categories", 500);
