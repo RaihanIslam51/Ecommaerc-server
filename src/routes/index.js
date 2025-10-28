@@ -10,6 +10,7 @@ import notificationRoutes from "./notificationRoutes.js";
 import messageRoutes from "./messageRoutes.js";
 import analyticsRoutes from "./analyticsRoutes.js";
 import emailRoutes from "./emailRoutes.js";
+import chatSessionRoutes from "./chatSessions.js";
 import { getDashboardStats } from "../controllers/analyticsController.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -31,7 +32,8 @@ router.get("/", (req, res) => {
       notifications: "/api/notifications",
       messages: "/api/messages",
       analytics: "/api/analytics",
-      email: "/api/email"
+      email: "/api/email",
+      chatSessions: "/api/chat-sessions"
     }
   });
 });
@@ -50,5 +52,6 @@ router.use("/notifications", notificationRoutes);
 router.use("/messages", messageRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/api", emailRoutes); // /api/send-email
+router.use("/chat-sessions", chatSessionRoutes);
 
 export default router;

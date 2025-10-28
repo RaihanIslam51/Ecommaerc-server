@@ -1,5 +1,6 @@
 // config/database.js
 import { MongoClient, ServerApiVersion } from "mongodb";
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -30,8 +31,14 @@ export const connectDB = async () => {
       return db;
     }
 
+    // Connect with native MongoDB driver
     await client.connect();
     db = client.db("bdmart");
+    
+    // Connect with Mongoose for models
+    await mongoose.connect(uri, {
+      dbName: "bdmart"
+    });
     
     console.log("✅ Successfully connected to MongoDB!");
     
@@ -61,6 +68,7 @@ export const getDB = () => {
 export const closeDB = async () => {
   try {
     await client.close();
+    await mongoose.disconnect();
     db = null;
     console.log("✅ Database connection closed");
   } catch (error) {
