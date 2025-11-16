@@ -51,7 +51,7 @@ router.use("/banners", bannerRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/messages", messageRoutes);
 router.use("/analytics", analyticsRoutes);
-router.use("/api", emailRoutes); // /api/send-email
+router.use("/email", emailRoutes); // /email/send-email, /email/send-to-all-customers, /email/test
 router.use("/chat-sessions", chatSessionRoutes);
 
 export default router;
