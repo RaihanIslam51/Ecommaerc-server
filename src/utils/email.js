@@ -52,7 +52,7 @@ export const sendEmail = async (to, subject, text, html = null) => {
     await transporter.verify();
 
     const mailOptions = {
-      from: `"BDMart" <${process.env.EMAIL_USER}>`,
+      from: `"RannarKaj.com" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       text,
@@ -79,7 +79,7 @@ export const sendBulkEmail = async (recipients, subject, text, html = null) => {
 
     const emailPromises = recipients.map(async (email) => {
       const mailOptions = {
-        from: `"BDMart" <${process.env.EMAIL_USER}>`,
+        from: `"RannarKaj.com" <${process.env.EMAIL_USER}>`,
         to: email,
         subject,
         text,
@@ -104,14 +104,14 @@ const generateDefaultEmailTemplate = (subject, message) => {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">🛒 BDMart</h1>
+        <h1 style="color: white; margin: 0; font-size: 28px;">🛒 RannarKaj.com</h1>
       </div>
       <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <h2 style="color: #333; margin-top: 0;">${subject}</h2>
         <div style="color: #555; line-height: 1.6; white-space: pre-wrap;">${message}</div>
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
         <p style="color: #888; font-size: 12px; text-align: center; margin: 0;">
-          © ${new Date().getFullYear()} BDMart. All rights reserved.
+          © ${new Date().getFullYear()} RannarKaj.com. All rights reserved.
         </p>
       </div>
     </div>
@@ -142,7 +142,7 @@ export const sendOrderConfirmation = async (customerEmail, order) => {
  * Send password reset email
  */
 export const sendPasswordResetEmail = async (email, tempPassword) => {
-  const subject = "Password Reset - BDMart";
+  const subject = "Password Reset - RannarKaj.com";
   const text = `Your temporary password is: ${tempPassword}. Please login and change your password immediately.`;
   const html = generateDefaultEmailTemplate(subject, text);
   

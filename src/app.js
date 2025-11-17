@@ -32,7 +32,7 @@ if (process.env.NODE_ENV !== 'production') {
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "🚀 BDMart API Server is running!",
+    message: "🚀 RannarKaj.com API Server is running!",
     version: "2.0.0",
     timestamp: new Date().toISOString()
   });

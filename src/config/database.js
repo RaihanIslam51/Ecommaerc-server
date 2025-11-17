@@ -33,11 +33,11 @@ export const connectDB = async () => {
 
     // Connect with native MongoDB driver
     await client.connect();
-    db = client.db("bdmart");
+    db = client.db("RannarKaj.com");
     
     // Connect with Mongoose for models
     await mongoose.connect(uri, {
-      dbName: "bdmart"
+      dbName: "RannarKaj.com"
     });
     
     console.log("✅ Successfully connected to MongoDB!");

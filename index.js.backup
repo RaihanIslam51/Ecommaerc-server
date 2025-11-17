@@ -36,7 +36,7 @@ async function run() {
     console.log("✅ Successfully connected to MongoDB!");
 
     // Select the database and collections
-    const db = client.db("bdmart");
+    const db = client.db("RannarKaj.com");
     const usersCollection = db.collection("users");
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
@@ -67,7 +67,7 @@ async function run() {
     app.get("/", (req, res) => {
       res.status(200).send({
         success: true,
-        message: "🚀 BDMart API Server is running!",
+        message: "🚀 RannarKaj.com API Server is running!",
         timestamp: new Date().toISOString(),
         endpoints: {
           products: "/products",
@@ -1891,21 +1891,21 @@ async function run() {
         // Send email to each recipient
         const emailPromises = recipients.map(async (email) => {
           const mailOptions = {
-            from: `"BDMart" <${process.env.EMAIL_USER}>`,
+            from: `"RannarKaj.com" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: subject,
             text: message,
             html: htmlContent || `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-                  <h1 style="color: white; margin: 0; font-size: 28px;">🛒 BDMart</h1>
+                  <h1 style="color: white; margin: 0; font-size: 28px;">🛒 RannarKaj.com</h1>
                 </div>
                 <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                   <h2 style="color: #333; margin-top: 0;">${subject}</h2>
                   <div style="color: #555; line-height: 1.6; white-space: pre-wrap;">${message}</div>
                   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                   <p style="color: #888; font-size: 12px; text-align: center; margin: 0;">
-                    © ${new Date().getFullYear()} BDMart. All rights reserved.
+                    © ${new Date().getFullYear()} RannarKaj.com. All rights reserved.
                   </p>
                 </div>
               </div>

@@ -73,7 +73,8 @@ export const createOrder = async (req, res) => {
       shippingAddress: req.body.shippingAddress || {
         address: req.body.customerInfo?.address || ""
       },
-      paymentMethod: req.body.paymentMethod || "cash"
+      paymentMethod: req.body.paymentMethod || "cash",
+      deliveryTime: req.body.deliveryTime || "30 minutes"
     };
 
     const order = await Order.create(orderData);

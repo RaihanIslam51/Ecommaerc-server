@@ -20,7 +20,7 @@ async function createTestMessage() {
     await client.connect();
     console.log("✅ Connected to MongoDB!");
 
-    const db = client.db("bdmart");
+    const db = client.db("RannarKaj.com");
     const messagesCollection = db.collection("messages");
 
     // Create multiple test messages

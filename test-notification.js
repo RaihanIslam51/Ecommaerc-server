@@ -20,7 +20,7 @@ async function createTestNotification() {
     await client.connect();
     console.log("✅ Connected to MongoDB!");
 
-    const db = client.db("bdmart");
+    const db = client.db("RannarKaj.com");
     const notificationsCollection = db.collection("notifications");
 
     // Create a test notification

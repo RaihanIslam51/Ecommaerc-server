@@ -18,7 +18,7 @@ const startServer = async () => {
     // Start Express server
     app.listen(PORT, () => {
       console.log("=".repeat(50));
-      console.log("🚀 BDMart Server Started Successfully!");
+      console.log("🚀 RannarKaj.com Server Started Successfully!");
       console.log("=".repeat(50));
       console.log(`📡 Server running on port: ${PORT}`);
       console.log(`🌐 API URL: http://localhost:${PORT}`);

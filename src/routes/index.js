@@ -20,7 +20,7 @@ const router = express.Router();
 router.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "🚀 BDMart API Server is running!",
+    message: "🚀 RannarKaj.com API Server is running!",
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: "/api/auth",

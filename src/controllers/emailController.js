@@ -175,7 +175,7 @@ const generateProfessionalEmailTemplate = (subject, message) => {
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-            🛒 BDMart
+            🛒 RannarKaj.com
           </h1>
           <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">
             Your Trusted Shopping Partner
@@ -194,8 +194,8 @@ const generateProfessionalEmailTemplate = (subject, message) => {
 
           <!-- Call to Action Button -->
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://bdmart.com" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);">
-              Visit BDMart
+            <a href="https://RannarKaj.com.com" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);">
+              Visit RannarKaj.com
             </a>
           </div>
 
@@ -246,23 +246,23 @@ const generateProfessionalEmailTemplate = (subject, message) => {
           <!-- Contact Info -->
           <div style="text-align: center; margin-bottom: 20px;">
             <p style="color: #888888; font-size: 13px; margin: 5px 0;">
-              📧 Email: support@bdmart.com
+              📧 Email: support@RannarKaj.com.com
             </p>
             <p style="color: #888888; font-size: 13px; margin: 5px 0;">
               📱 Phone: +880 1234-567890
             </p>
             <p style="color: #888888; font-size: 13px; margin: 5px 0;">
-              🌐 Website: www.bdmart.com
+              🌐 Website: www.RannarKaj.com.com
             </p>
           </div>
 
           <!-- Copyright -->
           <div style="text-align: center; padding-top: 20px; border-top: 1px solid #eeeeee;">
             <p style="color: #999999; font-size: 12px; margin: 0;">
-              © ${new Date().getFullYear()} BDMart. All rights reserved.
+              © ${new Date().getFullYear()} RannarKaj.com. All rights reserved.
             </p>
             <p style="color: #999999; font-size: 11px; margin: 10px 0 0 0;">
-              You received this email because you are a valued customer of BDMart.
+              You received this email because you are a valued customer of RannarKaj.com.
             </p>
           </div>
         </div>
@@ -284,8 +284,8 @@ export const testEmail = async (req, res) => {
     }
 
     // Send test email
-    const testSubject = "BDMart Email Configuration Test";
-    const testMessage = "This is a test email from BDMart admin dashboard. Email service is working properly!";
+    const testSubject = "RannarKaj.com Email Configuration Test";
+    const testMessage = "This is a test email from RannarKaj.com admin dashboard. Email service is working properly!";
     
     await sendSingleEmail(
       process.env.EMAIL_USER,
