@@ -1,6 +1,8 @@
 // controllers/orderController.js
 import Order from "../models/Order.js";
 import Notification from "../models/Notification.js";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 import {
   successResponse,
   errorResponse,
@@ -8,6 +10,17 @@ import {
   notFoundResponse,
   badRequestResponse
 } from "../utils/response.js";
+
+dotenv.config();
+
+// Create email transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.ZAP_EMAIL,
+    pass: process.env.ZAP_APP_PASSWORD,
+  },
+});
 
 /**
  * Get all orders
@@ -83,6 +96,86 @@ export const createOrder = async (req, res) => {
     // Create notification for new order
     await Notification.createOrderNotification(order);
     console.log("🔔 Notification created");
+
+    // Send confirmation email to customer
+    try {
+      console.log("📧 Attempting to send email to:", orderData.customerInfo?.email);
+      
+      if (orderData.customerInfo?.email) {
+        console.log("✅ Email address found, preparing email...");
+        
+        const itemsHtml = orderData.items.map(item => `
+          <li style="padding: 10px; border-bottom: 1px solid #eee;">
+            <strong>${item.name}</strong> - Quantity: ${item.quantity} - Price: ৳${item.price}
+          </li>
+        `).join('');
+
+        const emailObj = {
+          from: `RannarKaj.com <${process.env.ZAP_EMAIL}>`,
+          to: orderData.customerInfo.email,
+          subject: "Order Confirmation - RannarKaj.com",
+          html: `
+            <div style="font-family: Arial; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">🛒 RannarKaj.com</h1>
+              </div>
+              <div style="padding: 20px; background: #ffffff;">
+                <h2 style="color: #0a7cff; margin-top: 0;">Order Confirmation</h2>
+                <p>Dear <strong>${orderData.customerInfo.name || 'Customer'}</strong>,</p>
+                <p>Thank you for your order. Your order has been received and is being processed.</p>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #333; margin-top: 0;">📋 Order Details</h3>
+                  <p style="margin: 5px 0;"><strong>Order ID:</strong> ${order._id}</p>
+                  <p style="margin: 5px 0;"><strong>Customer Name:</strong> ${orderData.customerInfo.name}</p>
+                  <p style="margin: 5px 0;"><strong>Email:</strong> ${orderData.customerInfo.email}</p>
+                  <p style="margin: 5px 0;"><strong>Phone:</strong> ${orderData.customerInfo.phone || 'N/A'}</p>
+                  <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #10b981; font-size: 18px; font-weight: bold;">৳${orderData.totalAmount}</span></p>
+                  <p style="margin: 5px 0;"><strong>Payment Method:</strong> ${orderData.paymentMethod}</p>
+                  <p style="margin: 5px 0;"><strong>Delivery Time:</strong> ${orderData.deliveryTime}</p>
+                </div>
+
+                <h3 style="color: #333;">📦 Order Items</h3>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                  ${itemsHtml}
+                </ul>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #333; margin-top: 0;">📍 Shipping Address</h3>
+                  <p style="margin: 0;">${orderData.customerInfo.address}</p>
+                </div>
+
+                <div style="border-top: 2px solid #e5e7eb; margin-top: 20px; padding-top: 20px;">
+                  <p style="font-size: 14px; color: #555; margin: 5px 0;">
+                    This is an automated email from <strong>RannarKaj.com</strong>.
+                  </p>
+                  <p style="font-size: 12px; color: #888; margin: 5px 0;">
+                    If you have any questions, please contact us at support@rannarkaj.com
+                  </p>
+                </div>
+              </div>
+              <div style="background: #f3f4f6; padding: 15px; text-align: center; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">
+                  © ${new Date().getFullYear()} RannarKaj.com. All rights reserved.
+                </p>
+              </div>
+            </div>
+          `,
+        };
+
+        console.log("📨 Sending email via transporter...");
+        const emailResult = await transporter.sendMail(emailObj);
+        console.log("✅ Confirmation email sent successfully!");
+        console.log("📬 Message ID:", emailResult.messageId);
+        console.log("📧 Sent to:", orderData.customerInfo.email);
+      } else {
+        console.log("⚠️ No email address provided in customerInfo");
+      }
+    } catch (emailError) {
+      console.error("❌ Failed to send confirmation email:", emailError.message);
+      console.error("Full error:", emailError);
+      // Don't fail the order if email fails
+    }
 
     return createdResponse(res, { order }, "Order created successfully");
   } catch (error) {

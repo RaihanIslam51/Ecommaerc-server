@@ -8,22 +8,26 @@ dotenv.config();
  * Create email transporter
  */
 const createTransporter = () => {
+  // Try ZAP credentials first, then fall back to EMAIL_USER/EMAIL_PASSWORD
+  const emailUser = process.env.ZAP_EMAIL || process.env.EMAIL_USER;
+  const emailPassword = process.env.ZAP_APP_PASSWORD || process.env.EMAIL_PASSWORD;
+  
   // Check if email is configured
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-    throw new Error("Email not configured. Please set EMAIL_USER and EMAIL_PASSWORD in .env file");
+  if (!emailUser || !emailPassword) {
+    throw new Error("Email not configured. Please set ZAP_EMAIL/ZAP_APP_PASSWORD or EMAIL_USER/EMAIL_PASSWORD in .env file");
   }
 
   // Check for placeholder values
-  if (process.env.EMAIL_USER === 'your-email@gmail.com' || 
-      process.env.EMAIL_PASSWORD === 'your-app-password') {
+  if (emailUser === 'your-email@gmail.com' || 
+      emailPassword === 'your-app-password') {
     throw new Error("Email credentials are still set to placeholder values");
   }
 
-  return nodemailer.createTransport({
+  return nodemailer.createTransporter({
     service: process.env.EMAIL_SERVICE || 'gmail',
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
+      user: emailUser,
+      pass: emailPassword
     }
   });
 };
@@ -51,8 +55,9 @@ export const sendEmail = async (to, subject, text, html = null) => {
     // Verify transporter
     await transporter.verify();
 
+    const emailUser = process.env.ZAP_EMAIL || process.env.EMAIL_USER;
     const mailOptions = {
-      from: `"RannarKaj.com" <${process.env.EMAIL_USER}>`,
+      from: `"RannarKaj.com" <${emailUser}>`,
       to,
       subject,
       text,
@@ -77,9 +82,10 @@ export const sendBulkEmail = async (recipients, subject, text, html = null) => {
     // Verify transporter
     await transporter.verify();
 
+    const emailUser = process.env.ZAP_EMAIL || process.env.EMAIL_USER;
     const emailPromises = recipients.map(async (email) => {
       const mailOptions = {
-        from: `"RannarKaj.com" <${process.env.EMAIL_USER}>`,
+        from: `"RannarKaj.com" <${emailUser}>`,
         to: email,
         subject,
         text,
