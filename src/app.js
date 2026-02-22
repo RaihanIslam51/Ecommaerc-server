@@ -83,6 +83,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // API Routes (root health check is handled inside routes/index.js)
+// prefix routes with /api so client requests match expected paths
+app.use("/api", routes);
+// also support non-prefixed paths for convenience (many clients hit /categories etc)
 app.use("/", routes);
 
 // Payment confirmation email endpoint
