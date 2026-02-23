@@ -9,6 +9,7 @@ const router = express.Router();
 
 // All user routes require admin access
 router.get("/", asyncHandler(userController.getAllUsers));
+router.get("/:id", validateIdParam, asyncHandler(userController.getUserById));
 router.put("/:id/role", validateIdParam, verifyAdmin, asyncHandler(userController.updateUserRole));
 router.delete("/:id", validateIdParam, verifyAdmin, asyncHandler(userController.deleteUser));
 

@@ -49,6 +49,28 @@ export const getAllUsers = async (req, res) => {
 };
 
 /**
+ * Get single user by ID
+ */
+export const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    // Remove password from response
+    delete user.password;
+
+    return successResponse(res, { user }, "User fetched successfully");
+  } catch (error) {
+    console.error("❌ Error fetching user:", error);
+    return errorResponse(res, "Failed to fetch user", 500);
+  }
+};
+
+/**
  * Update user role (Admin only)
  */
 export const updateUserRole = async (req, res) => {
@@ -120,6 +142,7 @@ export const deleteUser = async (req, res) => {
 
 export default {
   getAllUsers,
+  getUserById,
   updateUserRole,
   deleteUser
 };

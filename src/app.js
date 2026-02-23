@@ -55,13 +55,17 @@ app.use((req, res, next) => {
 });
 
 // CORS
+const buildAllowedOrigins = () => {
+  const base = ['http://localhost:3000'];
+  if (process.env.CLIENT_URL) {
+    process.env.CLIENT_URL.split(',').map(u => u.trim()).forEach(u => base.push(u));
+  }
+  return base;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
-      'http://localhost:3000',
-      'https://rannarkaj.com',
-      'https://www.rannarkaj.com',
-    ];
+    const allowed = buildAllowedOrigins();
     if (!origin || allowed.includes(origin)) return callback(null, true);
     callback(new Error(`CORS policy: origin '${origin}' not allowed`));
   },

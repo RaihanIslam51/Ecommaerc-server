@@ -17,7 +17,7 @@ export const connectDB = async () => {
   }
 
   if (mongoose.connection.readyState === 1) {
-    console.log("📦 Using existing MongoDB connection");
+    console.log("Using existing MongoDB connection");
     return mongoose.connection;
   }
 
